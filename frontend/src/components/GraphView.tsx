@@ -114,7 +114,14 @@ const GraphView: React.FC = () => {
                 fgRef.current.d3Force('center').strength(0);
                 // Stop simulation immediately
                 fgRef.current.d3ReheatSimulation?.();
+            } else if (vizType === '3d') {
+                // 3D: strong forces with good physics
+                fgRef.current.d3Force('charge').strength(-200);
+                fgRef.current.d3Force('link').distance(100);
+                fgRef.current.resumeAnimation?.();
+                fgRef.current.d3ReheatSimulation?.();
             } else {
+                // 2D: standard physics
                 fgRef.current.d3Force('charge').strength(-200);
                 fgRef.current.d3Force('link').distance(100);
                 fgRef.current.resumeAnimation?.();
@@ -124,12 +131,34 @@ const GraphView: React.FC = () => {
     }, [vizType, data]);
 
     useEffect(() => {
+        // Handle 3D camera fitting and animation resume when switching modes
         if (vizType === '3d' && fgRef.current) {
-            setTimeout(() => {
-                fgRef.current.zoomToFit?.(400, 40);
-            }, 100);
+            // First, ensure simulation is running
+            if (fgRef.current.d3Force) {
+                fgRef.current.d3Force('charge').strength(-200);
+                fgRef.current.d3Force('link').distance(100);
+                fgRef.current.resumeAnimation?.();
+                fgRef.current.d3ReheatSimulation?.();
+            }
+            
+            // Fit camera after a brief delay to let simulation start
+            const fitTimer = setTimeout(() => {
+                if (fgRef.current && typeof fgRef.current.zoomToFit === 'function') {
+                    try {
+                        fgRef.current.zoomToFit(400, 150);
+                    } catch (e) {
+                        console.log('3D zoom attempt:', e);
+                    }
+                }
+            }, 200);
+            
+            return () => clearTimeout(fitTimer);
+        } else if (vizType !== 'tree' && fgRef.current && fgRef.current.d3Force) {
+            // For 2D and Radial modes (not tree), ensure animation is running
+            fgRef.current.resumeAnimation?.();
+            fgRef.current.d3ReheatSimulation?.();
         }
-    }, [vizType, data]);
+    }, [vizType]);
 
     const handleNodeDrag = useCallback((node: any) => {
         if (node.group === 'file') {
@@ -299,12 +328,15 @@ const GraphView: React.FC = () => {
         };
 
         if (vizType === '3d') {
+            const width = Math.max(400, window.innerWidth - 400);
+            const height = Math.max(300, window.innerHeight);
+            
             return (
                 <ForceGraph3D
-                    key={`fg-3d-${data.nodes.length}-${data.links.length}`}
+                    key={`fg-3d-${vizType}-${data.nodes.length}-${data.links.length}`}
                     {...commonProps}
-                    width={window.innerWidth - 400}
-                    height={window.innerHeight}
+                    width={width}
+                    height={height}
                     backgroundColor="#000000"
                     nodeColor={(node: any) => {
                         if (node.group === 'topic') return '#00ff00';
@@ -316,19 +348,22 @@ const GraphView: React.FC = () => {
                     linkOpacity={0.3}
                     d3VelocityDecay={0.15}
                     d3AlphaDecay={0.04}
-                    cooldownTime={1000}
-                    warmupTicks={50}
+                    cooldownTime={1500}
+                    warmupTicks={100}
                 />
             );
         }
 
         // 2D, Radial, and Tree all use 2D rendering
+        const width = Math.max(400, window.innerWidth - 400);
+        const height = Math.max(300, window.innerHeight);
+        
         return (
             <ForceGraph2D
                 key={`fg-2d-${vizType}-${data.nodes.length}-${data.links.length}`}
                 {...commonProps}
-                width={window.innerWidth - 400}
-                height={window.innerHeight}
+                width={width}
+                height={height}
                 backgroundColor="#000000"
                 d3VelocityDecay={0.15}
                 d3AlphaDecay={0.04}
