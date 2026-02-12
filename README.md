@@ -269,22 +269,27 @@ CLUSTER_MIN_SAMPLES = 2                  # Minimum cluster size
 #### Graph Visualization
 The main dashboard shows an interactive force-directed graph where each node represents a document and edges show semantic relationships. Files are automatically clustered by similarity.
 
-![Graph Visualization](.attachments/graph-view-1.png)
+<img width="1919" height="1029" alt="image" src="https://github.com/user-attachments/assets/2c8d6070-c88f-4ed8-9d2f-08d8b7f9361f" />
+
 
 #### Semantic Search
 Search your documents using natural language queries. The system finds semantically similar content across all your files.
 
-![Semantic Search Results](.attachments/semantic-search-results.png)
+<img width="1919" height="1029" alt="image" src="https://github.com/user-attachments/assets/d4f16de5-d9af-4a02-bbc5-cc43c9cf7d23" />
+
 
 #### Document Viewer
 Click on any node to view the file content directly in the interface, making it easy to browse through your organized documents.
 
-![Document Viewer](.attachments/document-viewer.png)
+<img width="1919" height="1029" alt="image" src="https://github.com/user-attachments/assets/8c38c180-51b6-4f6a-84cb-4eb43fb27580" />
+
 
 #### File System Integration
 SEFS automatically organizes your files into semantically meaningful folders based on content analysis.
 
-![File System View](.attachments/file-system-view.png)
+<img width="1915" height="1020" alt="image" src="https://github.com/user-attachments/assets/384232d0-b723-4090-bf5e-299df3a5fe80" />
+
+<img width="1919" height="1029" alt="image" src="https://github.com/user-attachments/assets/108e573a-d9d5-4497-8731-0b298fc7f2d4" />
 
 ---
 
@@ -322,3 +327,4 @@ For questions or support, please open an issue on GitHub.
 ---
 
 <p align="center">Made with ❤️ by the SEFS Team</p>
+
