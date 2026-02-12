@@ -1,0 +1,1 @@
+"Artificial intelligence and machine learning enable computers to learn from data. Neural networks use layers of nodes to process information and recognize patterns." 

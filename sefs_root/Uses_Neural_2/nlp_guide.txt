@@ -1,0 +1,1 @@
+"Natural language processing helps computers understand human language. Transformers and attention mechanisms revolutionized NLP tasks like translation and summarization." 

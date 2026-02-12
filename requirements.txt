@@ -1,0 +1,13 @@
+fastapi
+uvicorn
+python-multipart
+watchdog
+sentence-transformers
+scikit-learn
+numpy
+pypdf
+protobuf<4.0.0
+requests
+chromadb
+google-genai
+python-dotenv
