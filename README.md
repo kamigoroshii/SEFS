@@ -266,18 +266,25 @@ CLUSTER_MIN_SAMPLES = 2                  # Minimum cluster size
 
 ### Demo Screenshots
 
-> 🖼️ **Coming Soon!** - MVP screenshots will be added here
-
-<!-- Uncomment and add your images
-#### Dashboard View
-![Dashboard](./assets/dashboard.png)
-
 #### Graph Visualization
-![Graph View](./assets/graph-view.png)
+The main dashboard shows an interactive force-directed graph where each node represents a document and edges show semantic relationships. Files are automatically clustered by similarity.
 
-#### File Upload & Processing
-![File Upload](./assets/file-upload.gif)
--->
+![Graph Visualization](.attachments/graph-view-1.png)
+
+#### Semantic Search
+Search your documents using natural language queries. The system finds semantically similar content across all your files.
+
+![Semantic Search Results](.attachments/semantic-search-results.png)
+
+#### Document Viewer
+Click on any node to view the file content directly in the interface, making it easy to browse through your organized documents.
+
+![Document Viewer](.attachments/document-viewer.png)
+
+#### File System Integration
+SEFS automatically organizes your files into semantically meaningful folders based on content analysis.
+
+![File System View](.attachments/file-system-view.png)
 
 ---
 
