@@ -1,0 +1,30 @@
+<svg width="192" height="192" xmlns="http://www.w3.org/2000/svg">
+  <rect width="192" height="192" fill="#000000"/>
+  <defs>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <!-- Network nodes -->
+  <circle cx="96" cy="96" r="30" fill="none" stroke="#00ff00" stroke-width="3" filter="url(#glow)"/>
+  <circle cx="96" cy="96" r="15" fill="#00ff00" filter="url(#glow)"/>
+  
+  <circle cx="50" cy="60" r="8" fill="#00ff00" opacity="0.7"/>
+  <circle cx="142" cy="60" r="8" fill="#00ff00" opacity="0.7"/>
+  <circle cx="50" cy="132" r="8" fill="#00ff00" opacity="0.7"/>
+  <circle cx="142" cy="132" r="8" fill="#00ff00" opacity="0.7"/>
+  
+  <!-- Connection lines -->
+  <line x1="96" y1="96" x2="50" y2="60" stroke="#00ff00" stroke-width="2" opacity="0.5"/>
+  <line x1="96" y1="96" x2="142" y2="60" stroke="#00ff00" stroke-width="2" opacity="0.5"/>
+  <line x1="96" y1="96" x2="50" y2="132" stroke="#00ff00" stroke-width="2" opacity="0.5"/>
+  <line x1="96" y1="96" x2="142" y2="132" stroke="#00ff00" stroke-width="2" opacity="0.5"/>
+  
+  <!-- Text -->
+  <text x="96" y="170" font-family="monospace" font-size="20" fill="#00ff00" text-anchor="middle" filter="url(#glow)">VC</text>
+</svg>
