@@ -47,7 +47,12 @@ class ContentAnalyzer:
 
     def generate_embedding(self, text: str) -> np.ndarray:
         """Generates a vector embedding for the given text."""
-        return self.model.encode(text)
+        return self.model.encode(text, convert_to_numpy=True)
+    
+    def generate_embeddings_batch(self, texts: List[str]) -> List[np.ndarray]:
+        """Generates embeddings for multiple texts efficiently (batched)."""
+        embeddings = self.model.encode(texts, batch_size=32, convert_to_numpy=True, show_progress_bar=False)
+        return embeddings if isinstance(embeddings, list) else embeddings.tolist()
 
     def extract_topic_label(self, texts: List[str]) -> str:
         """

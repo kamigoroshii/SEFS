@@ -1,1 +1,0 @@
-"Deep learning uses neural networks with many layers. Backpropagation adjusts weights to minimize errors. Training requires large datasets and computational power." 

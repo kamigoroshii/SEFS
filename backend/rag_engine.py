@@ -74,8 +74,10 @@ class RAGEngine:
                 meta["cluster_id"] = cluster_id
                 meta["topic_label"] = topic_label
             
-            # Generate embeddings
-            embeddings = [self.embedding_model.encode(text).tolist() for text in chunk_texts]
+            # Generate embeddings in batch (much faster)
+            embeddings = self.embedding_model.encode(chunk_texts, batch_size=32, convert_to_numpy=False, show_progress_bar=False)
+            if not isinstance(embeddings, list):
+                embeddings = embeddings.tolist()
             
             # Create unique IDs
             chunk_ids = [f"{filepath}__chunk_{i}" for i in range(len(chunks))]

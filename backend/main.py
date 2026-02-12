@@ -6,8 +6,13 @@ from typing import Dict, List, Set, Tuple
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request
 import uvicorn
 import numpy as np
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from queue import Queue
+import threading
 
 # Add current directory to path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -33,6 +38,8 @@ except ImportError as e:
 file_embeddings: Dict[str, any] = {} 
 file_contents: Dict[str, str] = {}
 file_clusters: Dict[str, Tuple[int, str]] = {}
+file_processing_queue: Queue = Queue()  # Queue for concurrent file processing
+executor = ThreadPoolExecutor(max_workers=4)  # Process up to 4 files concurrently
 
 analyzer = None
 file_manager = None
@@ -83,8 +90,31 @@ def process_file(filepath: str):
                 return False
         except Exception as e:
             print(f"[ERROR] Attempt {attempt + 1}: {e}", flush=True)
-            time.sleep(1)
+            time.sleep(0.5)  # Reduced from 1 second
     return False
+
+def process_files_batch(filepaths: List[str]):
+    """Process multiple files concurrently."""
+    futures = []
+    for filepath in filepaths:
+        future = executor.submit(process_file, filepath)
+        futures.append(future)
+    
+    # Wait for all to complete
+    completed = 0
+    for future in as_completed(futures):
+        try:
+            result = future.result()
+            if result:
+                completed += 1
+        except Exception as e:
+            print(f"[ERROR] Concurrent processing failed: {e}", flush=True)
+    
+    print(f"[BATCH] Processed {completed}/{len(filepaths)} files concurrently", flush=True)
+    
+    # Trigger reclustering after batch
+    if completed > 0:
+        recluster_and_organize()
 
 def recluster_and_organize():
     global file_clusters, storage
@@ -193,38 +223,71 @@ def calculate_entropy() -> Dict:
     
     return {"entropy": 0.5, "cohesion": 0.5, "separation": 0.0}
 
-def event_callback(event):
-    if event.is_directory: return
-    src = event.src_path
-    etype = event.event_type
+def event_callback(events):
+    """Handle batched file system events for concurrent processing."""
+    if not isinstance(events, list):
+        # Single event passed (backwards compatibility)
+        events = [events]
     
-    if etype == 'created' or etype == 'modified':
+    files_to_process = []
+    files_to_delete = []
+    moved_files = {}  # {src: dest}
+    
+    for event in events:
+        if event.is_directory: 
+            continue
+        
+        src = event.src_path
+        etype = event.event_type
+        
+        if etype == 'created' or etype == 'modified':
+            if src not in files_to_process and src not in files_to_delete:
+                files_to_process.append(src)
+                
+        elif etype == 'moved':
+            dest = event.dest_path
+            moved_files[src] = dest
+            if src in file_embeddings:
+                # Move embeddings
+                if src in file_embeddings:
+                    file_embeddings[dest] = file_embeddings.pop(src)
+                if src in file_contents:
+                    file_contents[dest] = file_contents.pop(src)
+                if src in file_clusters:
+                    file_clusters[dest] = file_clusters.pop(src)
+                storage.move_embedding(src, dest)
+                if rag_engine:
+                    rag_engine.remove_document(src)
+                    rag_engine.add_document(dest, file_contents.get(dest, ""))
+            else:
+                files_to_process.append(dest)
+                
+        elif etype == 'deleted':
+            if src not in files_to_process:
+                files_to_delete.append(src)
+    
+    # Process files concurrently
+    if files_to_process:
         try:
-            if process_file(src): 
-                recluster_and_organize()
+            process_files_batch(files_to_process)
         except Exception as e:
-            print(f"[ERROR] Processing {src}: {e}", flush=True)
-            
-    elif etype == 'moved':
-        dest = event.dest_path
-        if src in file_embeddings:
-            file_embeddings[dest] = file_embeddings.pop(src)
-            if src in file_contents: 
-                file_contents[dest] = file_contents.pop(src)
+            print(f"[ERROR] Batch processing {files_to_process}: {e}", flush=True)
+    
+    # Delete files
+    for filepath in files_to_delete:
+        try:
+            if filepath in file_embeddings: 
+                del file_embeddings[filepath]
+            if filepath in file_contents: 
+                del file_contents[filepath]
+            if filepath in file_clusters:
+                del file_clusters[filepath]
+            storage.delete_embedding(filepath)
+            if rag_engine:
+                rag_engine.remove_document(filepath)
             recluster_and_organize()
-            
-    elif etype == 'deleted':
-        print(f"[DELETE] Removing: {src}", flush=True)
-        if src in file_embeddings:
-            del file_embeddings[src]
-        if src in file_contents: 
-            del file_contents[src]
-        if src in file_clusters:
-            del file_clusters[src]
-        storage.delete_embedding(src)
-        if rag_engine:
-            rag_engine.remove_document(src)
-        recluster_and_organize()
+        except Exception as e:
+            print(f"[ERROR] Deleting {filepath}: {e}", flush=True)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -249,8 +312,9 @@ async def lifespan(app: FastAPI):
     file_manager = FileManager(MONITOR_ROOT)
     print("✓ File manager ready", flush=True)
     
-    # Scan and index all existing files
+    # Scan and index all existing files (use concurrent processing)
     print("Scanning workspace for files...", flush=True)
+    files_to_process = []
     for root, dirs, files in os.walk(MONITOR_ROOT):
         # Skip metadata folder
         if '.sefs_metadata' in root:
@@ -258,7 +322,13 @@ async def lifespan(app: FastAPI):
         for filename in files:
             if filename.endswith('.txt') or filename.endswith('.pdf'):
                 filepath = os.path.join(root, filename)
-                process_file(filepath)
+                files_to_process.append(filepath)
+    
+    # Process all files concurrently in batches
+    batch_size = 8
+    for i in range(0, len(files_to_process), batch_size):
+        batch = files_to_process[i:i+batch_size]
+        process_files_batch(batch)
     
     print(f"✓ Indexed {len(file_embeddings)} files", flush=True)
     
@@ -282,7 +352,17 @@ async def lifespan(app: FastAPI):
     print("\nShutting down...", flush=True)
     monitor.stop()
 
+# Middleware to prevent caching
+class NoCacheMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+        return response
+
 app = FastAPI(lifespan=lifespan)
+app.add_middleware(NoCacheMiddleware)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
 @app.get("/graph")

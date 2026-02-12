@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import ForceGraph2D from 'react-force-graph-2d';
+import ForceGraph3D from 'react-force-graph-3d';
 import axios from 'axios';
 
 interface GraphData {
@@ -19,6 +20,7 @@ const GraphView: React.FC = () => {
     const [isAsking, setIsAsking] = useState<boolean>(false);
     const [hoverGoBtn, setHoverGoBtn] = useState<boolean>(false);
     const [hoverAskBtn, setHoverAskBtn] = useState<boolean>(false);
+    const [vizType, setVizType] = useState<string>('2d'); // '2d', '3d', 'radial', 'tree'
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const fgRef = useRef<any>();
 
@@ -97,22 +99,57 @@ const GraphView: React.FC = () => {
         return () => clearInterval(interval);
     }, [isPaused]);
 
+    useEffect(() => {
+        // Configure d3 forces based on visualization type
+        if (fgRef.current && fgRef.current.d3Force) {
+            if (vizType === 'radial') {
+                fgRef.current.d3Force('charge').strength(-150);
+                fgRef.current.d3Force('link').distance(120);
+                fgRef.current.resumeAnimation?.();
+                fgRef.current.d3ReheatSimulation?.();
+            } else if (vizType === 'tree') {
+                // Tree: completely disable forces, use fixed positions only
+                fgRef.current.d3Force('charge').strength(0);
+                fgRef.current.d3Force('link').strength(0);
+                fgRef.current.d3Force('center').strength(0);
+                // Stop simulation immediately
+                fgRef.current.d3ReheatSimulation?.();
+            } else {
+                fgRef.current.d3Force('charge').strength(-200);
+                fgRef.current.d3Force('link').distance(100);
+                fgRef.current.resumeAnimation?.();
+                fgRef.current.d3ReheatSimulation?.();
+            }
+        }
+    }, [vizType, data]);
+
+    useEffect(() => {
+        if (vizType === '3d' && fgRef.current) {
+            setTimeout(() => {
+                fgRef.current.zoomToFit?.(400, 40);
+            }, 100);
+        }
+    }, [vizType, data]);
+
     const handleNodeDrag = useCallback((node: any) => {
         if (node.group === 'file') {
             setIsPaused(true);
-            node.fx = node.x;
-            node.fy = node.y;
+            // Don't fix position during drag for smoother movement
+            // node.fx = node.x;
+            // node.fy = node.y;
         }
     }, []);
 
     const handleNodeDragEnd = useCallback(async (node: any) => {
-        setIsPaused(false);
+        setTimeout(() => setIsPaused(false), 500);
         
         if (node.group !== 'file') {
-            node.fx = undefined;
-            node.fy = undefined;
             return;
         }
+        
+        // Fix position temporarily to check cluster assignment
+        node.fx = node.x;
+        node.fy = node.y;
         
         let closestTopic = null;
         let minDist = Infinity;
@@ -148,6 +185,273 @@ const GraphView: React.FC = () => {
         }
     }, [data.nodes]);
 
+    // Prepare graph data based on visualization type
+    const getLayoutData = () => {
+        if (vizType === 'radial') {
+            // Radial layout: arrange nodes in circles around root
+            const layoutData = { ...data };
+            const centerNode = data.nodes.find(n => n.group === 'root');
+            if (centerNode) {
+                centerNode.fx = 0;
+                centerNode.fy = 0;
+            }
+            return layoutData;
+        } else if (vizType === 'tree') {
+            // Tree layout: basic top-down rows (root -> topics -> files)
+            const layoutData = JSON.parse(JSON.stringify(data)); // Deep copy
+
+            const rootNode = layoutData.nodes.find((n: any) => n.group === 'root');
+            const topicNodes = layoutData.nodes.filter((n: any) => n.group === 'topic');
+            const fileNodes = layoutData.nodes.filter((n: any) => n.group === 'file');
+
+            const nodeById = new Map(layoutData.nodes.map((n: any) => [n.id, n]));
+            const topicToFiles = new Map<string, any[]>();
+
+            // Map files to topics regardless of link direction
+            layoutData.links.forEach((link: any) => {
+                const sourceId = typeof link.source === 'object' ? link.source.id : link.source;
+                const targetId = typeof link.target === 'object' ? link.target.id : link.target;
+                const sourceNode = nodeById.get(sourceId);
+                const targetNode = nodeById.get(targetId);
+
+                if (!sourceNode || !targetNode) return;
+
+                if (sourceNode.group === 'topic' && targetNode.group === 'file') {
+                    if (!topicToFiles.has(sourceNode.id)) topicToFiles.set(sourceNode.id, []);
+                    topicToFiles.get(sourceNode.id)!.push(targetNode);
+                } else if (targetNode.group === 'topic' && sourceNode.group === 'file') {
+                    if (!topicToFiles.has(targetNode.id)) topicToFiles.set(targetNode.id, []);
+                    topicToFiles.get(targetNode.id)!.push(sourceNode);
+                }
+            });
+
+            const canvasWidth = Math.max(600, window.innerWidth - 400);
+            const canvasHeight = Math.max(600, window.innerHeight);
+            const left = -canvasWidth / 2 + 80;
+            const right = canvasWidth / 2 - 80;
+            const rootY = -canvasHeight / 2 + 90;
+            const topicY = rootY + 170;
+            const fileY = topicY + 180;
+
+            // Root centered at top
+            if (rootNode) {
+                rootNode.fx = 0;
+                rootNode.fy = rootY;
+            }
+
+            // Topics row
+            const topicCount = Math.max(1, topicNodes.length);
+            const topicSpan = right - left;
+            const topicStep = topicCount === 1 ? 0 : topicSpan / (topicCount - 1);
+            topicNodes.forEach((topic: any, i: number) => {
+                topic.fx = left + (topicStep * i);
+                topic.fy = topicY;
+            });
+
+            // Files row per topic (simple horizontal spread)
+            topicNodes.forEach((topic: any) => {
+                const files = topicToFiles.get(topic.id) || [];
+                const fileSpacing = 80;
+                const totalWidth = (files.length - 1) * fileSpacing;
+                files.forEach((fileNode: any, i: number) => {
+                    fileNode.fx = topic.fx + (i * fileSpacing) - (totalWidth / 2);
+                    fileNode.fy = fileY;
+                });
+            });
+
+            // Any unassigned files fall back to center
+            fileNodes.forEach((node: any) => {
+                if (node.fx === undefined || node.fy === undefined) {
+                    node.fx = 0;
+                    node.fy = fileY;
+                }
+            });
+
+            return layoutData;
+        }
+        return data;
+    };
+
+    const renderGraph = () => {
+        const layoutData = getLayoutData();
+        const commonProps = {
+            ref: fgRef,
+            graphData: layoutData,
+            nodeLabel: (node: any) => `<div style="color: #00ff00; font-family: SF Mono, Monaco, Consolas, monospace; background: #000; padding: 5px; border: 1px solid #00ff00;">${node.label}</div>`,
+            linkColor: () => '#00ff00',
+            linkWidth: 1,
+            enableNodeDrag: vizType !== 'tree',
+            onNodeDrag: vizType !== 'tree' ? handleNodeDrag : undefined,
+            onNodeDragEnd: vizType !== 'tree' ? handleNodeDragEnd : undefined,
+            onNodeHover: (node: any) => {
+                setHoverNode(node);
+                if (node && node.group === 'file' && vizType !== 'tree') {
+                    document.body.style.cursor = 'grab';
+                } else {
+                    document.body.style.cursor = 'default';
+                }
+            },
+            onNodeClick: (node: any) => {
+                if (node?.group === 'file' && node.filepath && vizType !== 'tree') {
+                    showMessage(`> DRAG FILE TO RELOCATE`);
+                }
+            }
+        };
+
+        if (vizType === '3d') {
+            return (
+                <ForceGraph3D
+                    key={`fg-3d-${data.nodes.length}-${data.links.length}`}
+                    {...commonProps}
+                    width={window.innerWidth - 400}
+                    height={window.innerHeight}
+                    backgroundColor="#000000"
+                    nodeColor={(node: any) => {
+                        if (node.group === 'topic') return '#00ff00';
+                        if (node.group === 'root') return '#00ff00';
+                        return '#00aa00';
+                    }}
+                    nodeOpacity={0.9}
+                    nodeResolution={16}
+                    linkOpacity={0.3}
+                    d3VelocityDecay={0.15}
+                    d3AlphaDecay={0.04}
+                    cooldownTime={1000}
+                    warmupTicks={50}
+                />
+            );
+        }
+
+        // 2D, Radial, and Tree all use 2D rendering
+        return (
+            <ForceGraph2D
+                key={`fg-2d-${vizType}-${data.nodes.length}-${data.links.length}`}
+                {...commonProps}
+                width={window.innerWidth - 400}
+                height={window.innerHeight}
+                backgroundColor="#000000"
+                d3VelocityDecay={0.15}
+                d3AlphaDecay={0.04}
+                d3AlphaMin={0.001}
+                cooldownTime={vizType === 'tree' ? 0 : 1000}
+                warmupTicks={vizType === 'tree' ? 0 : 50}
+                linkDirectionalParticles={0}
+                nodeCanvasObject={(node: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
+                    const label = node.label as string;
+                    const fontSize = 11 / globalScale;
+                    ctx.font = `600 ${fontSize}px SF Mono, Monaco, Consolas, monospace`;
+
+                    const isTree = vizType === 'tree';
+
+                    if (node.group === 'topic') {
+                        ctx.shadowBlur = 20;
+                        ctx.shadowColor = '#00ff00';
+                        
+                        if (isTree) {
+                            // Tree: Draw boxes for topics
+                            ctx.fillStyle = 'rgba(0, 255, 0, 0.1)';
+                            ctx.fillRect(node.x! - 40, node.y! - 25, 80, 50);
+                            ctx.strokeStyle = '#00ff00';
+                            ctx.lineWidth = 2;
+                            ctx.strokeRect(node.x! - 40, node.y! - 25, 80, 50);
+                            
+                            ctx.shadowBlur = 0;
+                            ctx.fillStyle = '#00ff00';
+                            ctx.textAlign = 'center';
+                            ctx.fillText(label, node.x!, node.y! + 4);
+                        } else {
+                            // 2D/Radial: Draw circles
+                            ctx.fillStyle = 'rgba(0, 255, 0, 0.1)';
+                            ctx.beginPath();
+                            ctx.arc(node.x!, node.y!, 25, 0, 2 * Math.PI, false);
+                            ctx.fill();
+
+                            ctx.fillStyle = '#00ff00';
+                            ctx.beginPath();
+                            ctx.arc(node.x!, node.y!, 10, 0, 2 * Math.PI, false);
+                            ctx.fill();
+
+                            ctx.shadowBlur = 0;
+                            ctx.fillStyle = '#00ff00';
+                            ctx.fillText(label, node.x!, node.y! + 30);
+                        }
+
+                    } else if (node.group === 'root') {
+                        ctx.shadowBlur = 30;
+                        ctx.shadowColor = '#00ff00';
+                        ctx.fillStyle = '#00ff00';
+                        
+                        if (isTree) {
+                            // Tree: Draw square for root
+                            ctx.fillRect(node.x! - 12, node.y! - 12, 24, 24);
+                            ctx.strokeStyle = '#000';
+                            ctx.lineWidth = 2;
+                            ctx.strokeRect(node.x! - 12, node.y! - 12, 24, 24);
+                        } else {
+                            // 2D/Radial: Draw circle
+                            ctx.beginPath();
+                            ctx.arc(node.x!, node.y!, 8, 0, 2 * Math.PI, false);
+                            ctx.fill();
+                        }
+                        ctx.shadowBlur = 0;
+                    } else {
+                        const isHovered = hoverNode?.id === node.id;
+                        
+                        if (isTree) {
+                            // Tree: Draw boxes for file nodes
+                            const boxWidth = 70;
+                            const boxHeight = 20;
+                            
+                            if (isHovered) {
+                                ctx.shadowBlur = 15;
+                                ctx.shadowColor = '#00ff00';
+                                ctx.fillStyle = 'rgba(0, 255, 0, 0.2)';
+                                ctx.fillRect(node.x! - boxWidth/2 - 5, node.y! - boxHeight/2 - 5, boxWidth + 10, boxHeight + 10);
+                            }
+                            
+                            ctx.shadowBlur = 10;
+                            ctx.shadowColor = '#00ff00';
+                            ctx.fillStyle = isHovered ? '#00ff00' : '#00aa00';
+                            ctx.fillRect(node.x! - boxWidth/2, node.y! - boxHeight/2, boxWidth, boxHeight);
+                            
+                            ctx.strokeStyle = '#00ff00';
+                            ctx.lineWidth = 1;
+                            ctx.strokeRect(node.x! - boxWidth/2, node.y! - boxHeight/2, boxWidth, boxHeight);
+                            
+                            ctx.shadowBlur = 0;
+                            ctx.fillStyle = isHovered ? '#000' : '#00ff00';
+                            ctx.textAlign = 'center';
+                            ctx.fillText(label, node.x!, node.y! + 4);
+                        } else {
+                            // 2D/Radial: Draw circles
+                            if (isHovered) {
+                                ctx.shadowBlur = 15;
+                                ctx.shadowColor = '#00ff00';
+                                ctx.fillStyle = 'rgba(0, 255, 0, 0.2)';
+                                ctx.beginPath();
+                                ctx.arc(node.x!, node.y!, 20, 0, 2 * Math.PI, false);
+                                ctx.fill();
+                            }
+                            
+                            ctx.shadowBlur = 10;
+                            ctx.shadowColor = '#00ff00';
+                            ctx.fillStyle = isHovered ? '#00ff00' : '#00aa00';
+                            ctx.beginPath();
+                            ctx.arc(node.x!, node.y!, 8, 0, 2 * Math.PI, false);
+                            ctx.fill();
+                            
+                            ctx.shadowBlur = 0;
+                            if (globalScale > 0.8 || isHovered) {
+                                ctx.fillStyle = '#00ff00';
+                                ctx.fillText(label, node.x! + 12, node.y! + 4);
+                            }
+                        }
+                    }
+                }}
+            />
+        );
+    };
+
     return (
         <div style={{ 
             width: '100vw', 
@@ -173,97 +477,7 @@ const GraphView: React.FC = () => {
                 zIndex: 0
             }}></div>
 
-            <ForceGraph2D
-                ref={fgRef}
-                graphData={data}
-                width={window.innerWidth - 400}
-                height={window.innerHeight}
-                nodeLabel={(node: any) => `<div style="color: #00ff00; font-family: SF Mono, Monaco, Consolas, monospace; background: #000; padding: 5px; border: 1px solid #00ff00;">${node.label}</div>`}
-
-                d3VelocityDecay={0.4}
-                d3AlphaDecay={0.02}
-                cooldownTime={2000}
-                warmupTicks={100}
-                
-                linkColor={() => '#00ff00'}
-                linkWidth={1}
-                
-                enableNodeDrag={true}
-                onNodeDrag={handleNodeDrag}
-                onNodeDragEnd={handleNodeDragEnd}
-                onNodeHover={(node) => {
-                    setHoverNode(node);
-                    if (node && node.group === 'file') {
-                        document.body.style.cursor = 'grab';
-                    } else {
-                        document.body.style.cursor = 'default';
-                    }
-                }}
-                onNodeClick={(node) => {
-                    if (node?.group === 'file' && node.filepath) {
-                        showMessage(`> DRAG FILE TO RELOCATE`);
-                    }
-                }}
-
-                backgroundColor="#000000"
-                nodeCanvasObject={(node, ctx, globalScale) => {
-                    const label = node.label as string;
-                    const fontSize = 11 / globalScale;
-                    ctx.font = `600 ${fontSize}px SF Mono, Monaco, Consolas, monospace`;
-
-                    if (node.group === 'topic') {
-                        ctx.shadowBlur = 20;
-                        ctx.shadowColor = '#00ff00';
-                        
-                        ctx.fillStyle = 'rgba(0, 255, 0, 0.1)';
-                        ctx.beginPath();
-                        ctx.arc(node.x!, node.y!, 25, 0, 2 * Math.PI, false);
-                        ctx.fill();
-
-                        ctx.fillStyle = '#00ff00';
-                        ctx.beginPath();
-                        ctx.arc(node.x!, node.y!, 10, 0, 2 * Math.PI, false);
-                        ctx.fill();
-
-                        ctx.shadowBlur = 0;
-                        ctx.fillStyle = '#00ff00';
-                        ctx.fillText(label, node.x!, node.y! + 30);
-
-                    } else if (node.group === 'root') {
-                        ctx.shadowBlur = 30;
-                        ctx.shadowColor = '#00ff00';
-                        ctx.fillStyle = '#00ff00';
-                        ctx.beginPath();
-                        ctx.arc(node.x!, node.y!, 8, 0, 2 * Math.PI, false);
-                        ctx.fill();
-                        ctx.shadowBlur = 0;
-                    } else {
-                        const isHovered = hoverNode?.id === node.id;
-                        
-                        if (isHovered) {
-                            ctx.shadowBlur = 15;
-                            ctx.shadowColor = '#00ff00';
-                            ctx.fillStyle = 'rgba(0, 255, 0, 0.2)';
-                            ctx.beginPath();
-                            ctx.arc(node.x!, node.y!, 20, 0, 2 * Math.PI, false);
-                            ctx.fill();
-                        }
-                        
-                        ctx.shadowBlur = 10;
-                        ctx.shadowColor = '#00ff00';
-                        ctx.fillStyle = isHovered ? '#00ff00' : '#00aa00';
-                        ctx.beginPath();
-                        ctx.arc(node.x!, node.y!, 8, 0, 2 * Math.PI, false);
-                        ctx.fill();
-                        
-                        ctx.shadowBlur = 0;
-                        if (globalScale > 0.8 || isHovered) {
-                            ctx.fillStyle = '#00ff00';
-                            ctx.fillText(label, node.x! + 12, node.y! + 4);
-                        }
-                    }
-                }}
-            />
+            {renderGraph()}
             
             <div style={{ 
                 position: 'absolute', 
@@ -280,6 +494,56 @@ const GraphView: React.FC = () => {
                 </div>
                 <div style={{ marginTop: '5px', opacity: 0.7, fontSize: '0.9rem' }}>
                     STATUS: <span style={{ color: '#00ff00', animation: 'blink 1s infinite' }}>ONLINE</span>
+                </div>
+            </div>
+
+            {/* Visualization Type Switcher */}
+            <div style={{ 
+                position: 'absolute', 
+                bottom: 90, 
+                left: 20, 
+                color: '#00ff00', 
+                fontFamily: 'SF Mono, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+                fontSize: '0.75rem',
+                textShadow: '0 0 5px #00ff00',
+                zIndex: 100,
+                pointerEvents: 'auto'
+            }}>
+                <div style={{ marginBottom: '8px', opacity: 0.7 }}>&gt; VISUALIZATION:</div>
+                <div style={{ display: 'flex', gap: '5px', flexDirection: 'column' }}>
+                    {['2d', '3d', 'radial', 'tree'].map(type => (
+                        <button
+                            key={type}
+                            onClick={() => setVizType(type)}
+                            style={{
+                                background: vizType === type ? '#00ff00' : '#000',
+                                border: '1px solid #00ff00',
+                                color: vizType === type ? '#000' : '#00ff00',
+                                padding: '5px 12px',
+                                fontFamily: 'SF Mono, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+                                cursor: 'pointer',
+                                fontSize: '0.7rem',
+                                fontWeight: 'bold',
+                                textTransform: 'uppercase',
+                                transition: 'all 0.2s ease',
+                                boxShadow: vizType === type ? '0 0 10px rgba(0, 255, 0, 0.5)' : 'none'
+                            }}
+                            onMouseEnter={(e) => {
+                                if (vizType !== type) {
+                                    e.currentTarget.style.background = 'rgba(0, 255, 0, 0.2)';
+                                    e.currentTarget.style.boxShadow = '0 0 8px rgba(0, 255, 0, 0.3)';
+                                }
+                            }}
+                            onMouseLeave={(e) => {
+                                if (vizType !== type) {
+                                    e.currentTarget.style.background = '#000';
+                                    e.currentTarget.style.boxShadow = 'none';
+                                }
+                            }}
+                        >
+                            {type}
+                        </button>
+                    ))}
                 </div>
             </div>
 

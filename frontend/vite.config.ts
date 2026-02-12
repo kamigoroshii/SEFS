@@ -7,6 +7,12 @@ export default defineConfig({
     publicDir: 'public',
     server: {
         port: 5173,
-        strictPort: false
+        strictPort: false,
+        host: 'localhost',
+        hmr: {
+            protocol: 'ws',
+            host: 'localhost',
+            port: 5173
+        }
     }
 })

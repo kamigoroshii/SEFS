@@ -137,6 +137,20 @@ class EmbeddingStorage:
         conn.commit()
         conn.close()
     
+    def move_embedding(self, src: str, dest: str):
+        """Move/rename embedding in database."""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            UPDATE file_embeddings 
+            SET filepath = ?
+            WHERE filepath = ?
+        """, (dest, src))
+        
+        conn.commit()
+        conn.close()
+    
     def get_stats(self) -> Dict:
         """Get database statistics."""
         conn = sqlite3.connect(self.db_path)

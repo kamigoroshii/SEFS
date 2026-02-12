@@ -1,0 +1,2 @@
+Artificial Intelligence Fundamentals
+Artificial intelligence refers to computer systems designed to perform tasks that typically require human intelligence. Machine perception enables AI systems to interpret sensory data from cameras, microphones, and sensors. Decision-making algorithms analyze information and select optimal actions based on learned knowledge. Natural language understanding allows AI to comprehend human communication and respond appropriately in context.

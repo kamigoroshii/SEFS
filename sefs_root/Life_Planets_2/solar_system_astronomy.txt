@@ -1,0 +1,89 @@
+The Solar System: Our Cosmic Neighborhood
+
+The Solar System is the gravitational system of the Sun and all objects orbiting it, including eight planets, dwarf planets, moons, asteroids, and comets. Formed about 4.6 billion years ago, it represents our immediate cosmic locality within the Milky Way galaxy.
+
+The Sun:
+
+At the center of our solar system, the Sun accounts for 99.86% of all mass in the system. This massive ball of plasma powers all the planets through nuclear fusion in its core, converting hydrogen to helium and releasing enormous energy.
+
+Properties:
+- Mass: 2 × 10^30 kg (330,000 times Earth)
+- Radius: 696,000 km (109 times Earth)
+- Temperature: 15 million K (core), 5,800 K (surface)
+- Age: 4.6 billion years, roughly halfway through its life
+
+The Planets:
+
+Inner Planets (rocky):
+- Mercury: Small, closest to Sun, extreme temperature variations
+- Venus: Similar size to Earth, thick toxic atmosphere, hottest planet
+- Earth: Our home, only known planet with life
+- Mars: Red planet, recently explored for potential colonization
+
+Outer Planets (gas/ice giants):
+- Jupiter: Largest planet, Great Red Spot storm, 95 known moons
+- Saturn: Famous for rings, beautiful system of 146 known moons
+- Uranus: Rotates on its side, icy composition
+- Neptune: Farthest planet, strong winds, 16 known moons
+
+Dwarf Planets:
+
+Pluto (demoted 2006): Small, icy, highly eccentric orbit, 5 known moons
+
+Eris: Actually more massive than Pluto, in the Kuiper Belt
+
+Haumea, Makemake: Other recognized dwarf planets
+
+Smaller Bodies:
+
+Asteroids:
+- Rocky remnants from solar system formation
+- Mainly between Mars and Jupiter in the asteroid belt
+- Some approach Earth's orbit (near-Earth asteroids)
+
+Comets:
+- Icy bodies from outer solar system
+- Develop tails when approaching Sun due to solar heating
+- Periodic visitors offering glimpses from deep space
+
+Moons:
+- Earth: 1 moon
+- Mars: 2 small moons
+- Jupiter: 95 known moons including Io, Europa, Ganymede
+- Saturn: 146 known moons including Titan with methane lakes
+- Uranus: 28 confirmed moons
+- Neptune: 16 known moons
+
+Formation and Structure:
+
+The solar system formed from a collapsing molecular cloud about 4.6 billion years ago. The solar nebula hypothesis explains:
+
+1. Collapse created the Sun at center
+2. Remaining disk fragmented into planetesimals
+3. Collisions built up planets
+4. Migration and orbital interactions shaped final configuration
+
+Habitable Zone:
+
+The habitable zone ("Goldilocks zone") represents the region where conditions allow liquid water:
+- Not too close (Venus too hot)
+- Not too far (Mars too cold)
+- Earth perfectly positioned with stable atmosphere
+
+Exploration:
+
+Spacecraft have visited every major planet:
+- Viking, Pathfinder, Curiosity rovers on Mars
+- Cassini-Huygens explorers of Saturn system
+- New Horizons' flyby of Pluto
+- Various orbiters and landers
+
+Future Exploration:
+
+Plans include:
+- Human missions to Moon and Mars
+- Exploration of Europa and Enceladus for potential life
+- Sample return missions
+- Continued robotic exploration
+
+The Solar System represents a dynamic, complex system shaped by gravity, chemistry, and planetary physics. Understanding our cosmic neighborhood provides context for our place in the universe and guides our quest for knowledge about planets, moons, and the origins of our world.

@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>VibeCode - Semantic File System</title>
+    <title>Raphs-Semantic File System</title>
     <meta name="description" content="AI-powered semantic file system with RAG capabilities" />
     <meta name="theme-color" content="#00ff00" />
     <link rel="manifest" href="/manifest.json" />
@@ -67,10 +67,34 @@
           navigator.serviceWorker.register('/sw.js')
             .then((registration) => {
               console.log('SW registered:', registration);
+              
+              // Check for updates every 60 seconds
+              setInterval(() => {
+                registration.update();
+              }, 60000);
+              
+              // Handle service worker updates
+              registration.addEventListener('updatefound', () => {
+                const newWorker = registration.installing;
+                if (newWorker) {
+                  newWorker.addEventListener('statechange', () => {
+                    if (newWorker.state === 'activated' && navigator.serviceWorker.controller) {
+                      console.log('New service worker activated, reloading page...');
+                      window.location.reload();
+                    }
+                  });
+                }
+              });
             })
             .catch((error) => {
               console.log('SW registration failed:', error);
             });
+        });
+        
+        // Listen for controller change and reload
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+          console.log('Controller changed, reloading...');
+          window.location.reload();
         });
       }
     </script>

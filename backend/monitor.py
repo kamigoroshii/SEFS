@@ -11,7 +11,7 @@ class SEFSHandler(FileSystemEventHandler):
         self.file_manager = file_manager
         self.event_queue = deque()
         self.debounce_timer = None
-        self.debounce_seconds = 2  # Batch events for 2 seconds
+        self.debounce_seconds = 0.5  # Batch events for 0.5 seconds (faster response)
 
     def on_any_event(self, event):
         if event.is_directory:
@@ -60,9 +60,9 @@ class SEFSHandler(FileSystemEventHandler):
             event = self.event_queue.popleft()
             unique_events[event.src_path] = event
         
-        # Process unique events
-        for event in unique_events.values():
-            self.callback(event)
+        # Process batched events - pass list to callback instead of individually
+        unique_events_list = list(unique_events.values())
+        self.callback(unique_events_list)  # Pass list of events
         
         print(f"[BATCH] Processed {len(unique_events)} unique file operations", flush=True)
 
