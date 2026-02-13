@@ -259,10 +259,7 @@ CLUSTER_MIN_SAMPLES = 2                  # Minimum cluster size
 ### Demo Videos
 
 > 📹 **Coming Soon!** - MVP demo video will be added here
-
-<!-- Uncomment and add your video links
-[![SEFS Demo Video](https://img.youtube.com/vi/YOUR_VIDEO_ID/0.jpg)](https://www.youtube.com/watch?v=YOUR_VIDEO_ID)
--->
+**https://drive.google.com/file/d/1FAYYxMVeyy23qQOKIPdhyAQtLUjPj-hW/view?usp=sharing**
 
 ### Demo Screenshots
 
@@ -327,4 +324,5 @@ For questions or support, please open an issue on GitHub.
 ---
 
 <p align="center">Made with ❤️ by the SEFS Team</p>
+
 
